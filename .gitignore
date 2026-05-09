@@ -10,6 +10,10 @@ build/
 coverage/
 *.tsbuildinfo
 
-# journal/coach/sessions/ er bevisst IKKE ignorert — sammendrag committes
-# slik at coachen har historikk på tvers av maskiner (samme mønster som
-# life-buddy/journal/).
+# Audio debug-dumps (for når vi tester mic/play-pipelines)
+*.wav
+*.pcm
+*.raw
+
+# Personlige sesjoner/themes/prep bor i en ekstern storage-mappe pekt på
+# via $OPEN_COACH_STORAGE. Skal ikke havne her.

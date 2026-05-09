@@ -23,7 +23,7 @@ hoppe til løsninger for tidlig.
 $ open-coach
 ```
 
-1. Appen leser `themes.md`, `prep-next.md`, og siste 5 sesjons-sammendrag
+1. Appen leser `themes.md`, `prep-next.md`, og alle tilgjengelige sesjons-sammendrag fra `$OPEN_COACH_STORAGE`
 2. Bygger system prompt med coaching-stil + tema + prep + historikk
 3. Kobler til OpenAI Realtime API, sender `session.update` med system prompt
 4. Sender `response.create` umiddelbart slik at coachen åpner samtalen
@@ -41,10 +41,20 @@ $ open-coach
 
 ### Avslutning
 
-- **Ctrl+C** avslutter sesjonen
+Sesjonen avsluttes ved **det første av disse**:
+
+- **Ctrl+C** (manuelt)
+- **Hard cap** — `MAX_SESSION_MINUTES` (default 30 min)
+- **Inaktivitet** — `INACTIVITY_TIMEOUT_SECONDS` (default 120 sek = 2 min stillhet)
+
+Når sesjonen avsluttes:
+
 - Appen genererer et sammendrag (innsikter, mønstre, action items)
-- Lagres som `journal/coach/sessions/YYYY-MM-DD-HHMM.md`
-- Tømmer `prep-next.md` hvis den ble brukt
+- Lagres som `$OPEN_COACH_STORAGE/sessions/YYYY-MM-DD-HHMM.md` med full
+  toveis-transkripsjon + sammendrag på toppen
+
+Appen rører ikke `themes.md` eller `prep-next.md` — vedlikehold (inkl. å
+tømme prep etter bruk) er skills sitt ansvar.
 
 ### Hva coachen IKKE gjør
 
@@ -77,7 +87,7 @@ System prompt vil kodifisere:
               ▼                    ▲
         ┌────────────────────────────┐
         │  OpenAI Realtime API       │
-        │  (gpt-4o-realtime)         │
+        │  (OPENAI_REALTIME_MODEL)   │
         │                            │
         │  - VAD                     │
         │  - Interrupt handling      │
@@ -102,14 +112,16 @@ System prompt vil kodifisere:
 ### Stack
 
 - **Node.js ≥ 20.6** / **TypeScript** (ESM, NodeNext)
-- **OpenAI Realtime API** — `gpt-4o-realtime`. Realtime API er selve
-  toveis-streaming-laget; `sox` og `speaker` er kun OS-audio-glue.
-- **Audio inn:** `sox` spawnet som child process (cross-platform, enkel install)
-- **Audio ut:** `speaker` npm-pakke
+- **OpenAI Realtime API** — modell konfigurerbar via `OPENAI_REALTIME_MODEL`
+  (default `gpt-4o-realtime-preview`). Realtime API er selve toveis-streaming-laget;
+  `sox` er kun OS-audio-glue.
+- **Audio inn og ut:** `sox` spawnet som child process — `rec` for mic-capture,
+  `play` for avspilling. Cross-platform (Linux/macOS/Windows), ingen native
+  npm-bindings, ingen ALSA-/V8-kompileringsproblemer.
 - **WebSocket:** `ws` for Realtime-tilkobling
 - **Format:** PCM 16-bit, 24kHz mono (Realtime API-krav)
-- **API-nøkler:** Krever kun `OPENAI_API_KEY` i `.env`. Lastes via Nodes
-  innebygde `--env-file=.env`-flag (ingen `dotenv`-avhengighet).
+- **Konfig:** Lastes via Nodes innebygde `--env-file=.env`-flag (ingen
+  `dotenv`-avhengighet). Se `.env.example` for alle variabler.
 
 ### Pris-estimat
 
@@ -120,6 +132,17 @@ System prompt vil kodifisere:
 ---
 
 ## Filstruktur
+
+Prosjektet består av to ting:
+
+- **Dette repoet** — kode + generelle prompter
+- **En ekstern storage-mappe** — alt personlig: themes, prep, sesjoner
+
+Appen finner storage-mappa via `OPEN_COACH_STORAGE` env-variabel (default
+`/tmp/open-coach-storage` slik at appen starter uten oppsett). Hvordan brukeren
+backer opp mappa er utenfor appen sitt ansvar.
+
+### Dette repoet
 
 ```
 open-coach/
@@ -133,28 +156,34 @@ open-coach/
 │   ├── index.ts                # orchestrator + state machine
 │   ├── realtime.ts             # OpenAI Realtime WebSocket client
 │   ├── audio/
-│   │   ├── recorder.ts         # mic → PCM stream
-│   │   └── player.ts           # PCM stream → speakers
-│   ├── context.ts              # bygger system prompt fra prompts/ + themes + prep + history
+│   │   ├── recorder.ts         # mic → PCM stream (sox rec)
+│   │   └── player.ts           # PCM stream → speakers (sox play)
+│   ├── context.ts              # bygger system prompt fra prompts/ + storage
 │   └── session.ts              # transkripsjon + sammendrag-lagring
 ├── prompts/
 │   ├── coaching-system.md      # GROW + sokratiske teknikker (kjerne-prompt)
-│   └── session-summary.md      # prompt for å generere sammendrag ved Ctrl+C
-├── journal/
-│   └── coach/
-│       ├── themes.md           # langvarige tema (manuelt + via /coach-themes)
-│       ├── prep-next.md        # prep for neste sesjon (via /coach-prep)
-│       └── sessions/
-│           └── YYYY-MM-DD-HHMM.md
+│   └── session-summary.md      # prompt for å generere sammendrag ved avslutning
 ├── SPEC.md                     # denne fila
 ├── README.md
 ├── package.json
 └── tsconfig.json
 ```
 
+### Storage-mappa (`$OPEN_COACH_STORAGE`)
+
+Forventet layout. Appen oppretter manglende filer/mapper ved første kjøring.
+
+```
+$OPEN_COACH_STORAGE/
+├── themes.md                   # langvarige tema (manuelt + via /coach-themes)
+├── prep-next.md                # prep for neste sesjon (via /coach-prep)
+└── sessions/
+    └── YYYY-MM-DD-HHMM.md      # full transkripsjon + sammendrag
+```
+
 ---
 
-## Filer i `journal/coach/`
+## Filer i storage-mappa
 
 ### `themes.md`
 
@@ -179,7 +208,7 @@ Langvarig dokument Edgar eier. Coach leser hver sesjon.
 
 ### `prep-next.md`
 
-Frivillig prep før en sesjon. Tømmes etter bruk.
+Frivillig prep før en sesjon. 
 
 ```markdown
 # Prep for neste sesjon
@@ -188,6 +217,10 @@ I dag vil jeg snakke om [...]
 ```
 
 ### `sessions/YYYY-MM-DD-HHMM.md`
+
+Hver sesjon lagres med både **full toveis-transkripsjon** (alt Edgar og coachen
+sier) og et generert sammendrag på toppen. Input-transkripsjon gjøres via
+Realtime API (`input_audio_transcription`).
 
 ```markdown
 # Coach-sesjon 2026-05-09 19:34
@@ -202,6 +235,11 @@ Coach: Hei Edgar...
 Edgar: ...
 ```
 
+**Ingen app-side cap på historikk-størrelse.** Hele storage-mappa kan i
+prinsippet sendes som kontekst. Det er skills sitt ansvar (`/coach-themes`,
+`/coach-review`) å holde `themes.md` skarp og arkivere/komprimere gamle
+sesjoner hvis det blir nødvendig.
+
 ---
 
 ## Project Skills
@@ -211,13 +249,15 @@ skills gjør alt vedlikehold.**
 
 ### `/coach-prep`
 
-Skriv prep-notat før neste sesjon.
+Eier hele lifecycle for `prep-next.md`: skrive før sesjon, vise hva som ligger
+der, eller slette gammelt ikke-relevant innhold. Selve appen rører ikke `prep-next.md`.
+`/coach-prep` (eller`/coach-themes` som del av sin post-session-flyt) er det som skriver til `prep-next.md`.
 
 ```
 > /coach-prep
 Hva vil du prepe for neste sesjon?
 > Vanskelig samtale med kollega på mandag. Trenger klarhet.
-✓ Lagret til journal/coach/prep-next.md
+✓ Lagret til $OPEN_COACH_STORAGE/prep-next.md
 ```
 
 ### `/coach-themes`
@@ -231,8 +271,7 @@ Leser siste 5 sesjoner...
 Forslag til endringer:
   + Legg til: "Konflikthåndtering — direkte, ikke-konfronterende samtaler"
     (kommer opp i 3 av 5 sesjoner)
-  ~ Oppdater "AI Team Lead-reisen": legg til mentoring av juniorer
-  - Flytt "Saunaprosjekt" til Pause (ikke nevnt på 3 uker)
+  ~ Oppdater "AI Team reisen": legg til mentoring av juniorer
 
 Godkjenn? [y/n/edit]
 ```
@@ -244,7 +283,6 @@ Vis aktive tema + siste sammendrag i terminalen.
 ### `/coach-review`
 
 Ukentlig/månedlig mønsteranalyse på tvers av sesjoner.
-Kan kobles til life-buddy sitt `/weekly-review` senere.
 
 ---
 
@@ -252,7 +290,7 @@ Kan kobles til life-buddy sitt `/weekly-review` senere.
 
 Når vi starter koding (i ny sesjon):
 
-1. **Setup:** `npm install` (deps allerede definert: `ws`, `openai`, `speaker` + `tsx`/`typescript`/types). Verifiser at `sox` er installert på systemet. `src/index.ts` må starte med `#!/usr/bin/env node` shebang så `open-coach`-CLI-kommandoen virker etter `npm link`.
+1. **Setup:** `npm install` (deps allerede definert: `ws`, `openai` + `tsx`/`typescript`/types). Verifiser at `sox` er installert på systemet (gir både `rec` og `play`). `src/index.ts` må starte med `#!/usr/bin/env node` shebang så `open-coach`-CLI-kommandoen virker etter `npm link`.
 2. **Audio I/O:** mic → PCM stream + PCM stream → speakers (verifisere at lyd
    funker før vi kobler til Realtime)
 3. **Realtime API client:** WebSocket-tilkobling, audio-streaming, event-håndtering

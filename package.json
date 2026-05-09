@@ -26,12 +26,10 @@
   "license": "MIT",
   "dependencies": {
     "openai": "^4.77.0",
-    "speaker": "^0.5.5",
     "ws": "^8.18.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
-    "@types/speaker": "^0.5.4",
     "@types/ws": "^8.5.13",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0"
