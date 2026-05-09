@@ -131,9 +131,11 @@ open-coach/
 │   ├── audio/
 │   │   ├── recorder.ts         # mic → PCM stream
 │   │   └── player.ts           # PCM stream → speakers
-│   ├── context.ts              # bygger system prompt fra themes + prep + history
-│   ├── session.ts              # transkripsjon + sammendrag-lagring
-│   └── coaching-prompt.ts      # GROW + sokratiske teknikker (system prompt)
+│   ├── context.ts              # bygger system prompt fra prompts/ + themes + prep + history
+│   └── session.ts              # transkripsjon + sammendrag-lagring
+├── prompts/
+│   ├── coaching-system.md      # GROW + sokratiske teknikker (kjerne-prompt)
+│   └── session-summary.md      # prompt for å generere sammendrag ved Ctrl+C
 ├── journal/
 │   └── coach/
 │       ├── themes.md           # langvarige tema (manuelt + via /coach-themes)
@@ -252,7 +254,7 @@ Når vi starter koding (i ny sesjon):
 3. **Realtime API client:** WebSocket-tilkobling, audio-streaming, event-håndtering
 4. **Context builder:** lese themes + prep + history → bygge system prompt
 5. **Session logging:** transkripsjon underveis + sammendrag ved Ctrl+C
-6. **Coaching system prompt:** GROW + sokratiske teknikker, norsk
+6. **Coaching system prompt:** skriv `prompts/coaching-system.md` (GROW + sokratiske teknikker, norsk) og `prompts/session-summary.md`
 7. **Project skills:** /coach-prep, /coach-themes, /coach-status, /coach-review
 8. **Polish:** terminal-UI med farger, feilhåndtering, headset-warning
 
