@@ -125,6 +125,8 @@ System prompt vil kodifisere:
   mot `/v1/chat/completions`. Bevisst valg for å eie event-shapen og holde
   dependency-flaten flat.
 - **Format:** PCM 16-bit, 24kHz mono (Realtime API-krav)
+- **Turn detection:** `semantic_vad` med `eagerness: low`. Validert i spike —
+  tolererer tenkepauser midt i en setning på norsk uten at coach hopper inn.
 - **Konfig:** Lastes via Nodes innebygde `--env-file=.env`-flag (ingen
   `dotenv`-avhengighet). Se `.env.example` for alle variabler.
 

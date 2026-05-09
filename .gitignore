@@ -10,6 +10,9 @@ build/
 coverage/
 *.tsbuildinfo
 
+# Throwaway spike for end-to-end audio + Realtime validation
+spike.ts
+
 # Audio debug-dumps (for når vi tester mic/play-pipelines)
 *.wav
 *.pcm
