@@ -14,7 +14,7 @@ $ open-coach
 2. Connects to OpenAI Realtime API
 3. Coach opens with a contextual greeting in Norwegian
 4. You talk freely — VAD detects when you speak, model handles interrupts
-5. Session ends on **Ctrl+C**, **30 min hard cap**, or **2 min of silence** (see configs. whichever first)
+5. Session ends on **Ctrl+C**, **30 min hard cap**, or **2 min of audio silence** (whichever fires first)
 6. Generates a summary, saves full transcript + summary to your storage folder
 
 **Headset recommended** — without it, your mic picks up the AI voice and
@@ -60,7 +60,7 @@ commands in Claude Code (in `.claude/commands/`):
 ## Stack
 
 - Node.js ≥ 20.6 / TypeScript (ESM, NodeNext)
-- OpenAI Realtime API over WebSocket (`ws`)
+- OpenAI Realtime API over raw WebSocket (`ws`); summary call via built-in `fetch`. No OpenAI SDK.
 - `sox` for both mic capture (`rec`) and playback (`play`) — no native npm bindings
 
 ## Status

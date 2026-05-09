@@ -25,7 +25,6 @@
   "author": "Edgar Bjørntvedt",
   "license": "MIT",
   "dependencies": {
-    "openai": "^4.77.0",
     "ws": "^8.18.0"
   },
   "devDependencies": {
