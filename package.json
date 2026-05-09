@@ -1,9 +1,12 @@
 {
   "name": "open-coach",
   "version": "0.1.0",
-  "description": "Push-to-talk AI coach with real-time Norwegian transcription",
+  "description": "Hands-free Norwegian AI coach using OpenAI Realtime API (GPT-4o)",
   "main": "dist/index.js",
   "type": "module",
+  "bin": {
+    "open-coach": "dist/index.js"
+  },
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
@@ -12,10 +15,22 @@
   "keywords": [
     "ai",
     "coach",
-    "transcription",
-    "speech-to-text",
+    "realtime",
+    "openai",
     "norwegian"
   ],
   "author": "Edgar Bjørntvedt",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "openai": "^4.77.0",
+    "speaker": "^0.5.5",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/speaker": "^0.5.4",
+    "@types/ws": "^8.5.13",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
 }

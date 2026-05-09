@@ -26,8 +26,9 @@ $ open-coach
 
 1. Appen leser `themes.md`, `prep-next.md`, og siste 5 sesjons-sammendrag
 2. Bygger system prompt med coaching-stil + tema + prep + historikk
-3. Kobler til OpenAI Realtime API
-4. Coach åpner samtalen kontekstuelt:
+3. Kobler til OpenAI Realtime API, sender `session.update` med system prompt
+4. Sender `response.create` umiddelbart slik at coachen åpner samtalen
+5. Coach åpner kontekstuelt:
    - *"Hei Edgar. Jeg ser du har lagt en lapp om en vanskelig samtale på
      mandag. Vil du starte der, eller har noe annet kommet opp siden?"*
 
@@ -103,9 +104,11 @@ System prompt vil kodifisere:
 
 - **Node.js / TypeScript**
 - **OpenAI Realtime API** — `gpt-4o-realtime`
-- **Audio:** `sox`/`arecord` for mic, `speaker` npm-pakke eller `ffplay` for output
+- **Audio inn:** `sox` spawnet som child process (cross-platform, enkel install)
+- **Audio ut:** `speaker` npm-pakke
 - **WebSocket:** `ws` for Realtime-tilkobling
 - **Format:** PCM 16-bit, 24kHz mono (Realtime API-krav)
+- **API-nøkler:** Krever kun `OPENAI_API_KEY` i `.env`
 
 ### Pris-estimat
 
@@ -248,7 +251,7 @@ Kan kobles til life-buddy sitt `/weekly-review` senere.
 
 Når vi starter koding (i ny sesjon):
 
-1. **Setup:** TypeScript + dependencies (ws, openai, sox-wrapper, speaker)
+1. **Setup:** `npm install` (deps allerede definert: `ws`, `openai`, `speaker` + `tsx`/`typescript`/types). Verifiser at `sox` er installert på systemet.
 2. **Audio I/O:** mic → PCM stream + PCM stream → speakers (verifisere at lyd
    funker før vi kobler til Realtime)
 3. **Realtime API client:** WebSocket-tilkobling, audio-streaming, event-håndtering
@@ -267,7 +270,10 @@ Resten er filhåndtering og UX-polering.
 
 ---
 
-## Åpne spørsmål til neste sesjon
+## Åpne spørsmål — utsatt til etter første milepæl
+
+Disse besvares ikke før vi har fått grunnflyten til å fungere ende-til-ende.
+Ikke la dem blokkere implementasjon.
 
 - Eksakt format på `themes.md` — vil vi ha YAML-frontmatter for maskinlesing?
 - Skal `/coach-review` kobles direkte til life-buddy `/weekly-review`?

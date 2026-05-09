@@ -1,28 +1,42 @@
 # Open Coach
 
-A push-to-talk AI coach with real-time Norwegian transcription.
+A hands-free Norwegian AI coach using OpenAI's Realtime API. Speak naturally,
+get coached with proven techniques (GROW, Socratic questions, intentional
+pauses) — no hotkeys, no typing.
 
-## Idea
+## How it works
 
-Two hotkeys drive the conversation:
+```bash
+$ open-coach
+```
 
-- **Hotkey 1** — I speak. Audio is streamed and transcribed live (Norwegian).
-- **Hotkey 2** — The AI coach speaks back, applying solid coaching techniques.
+1. Loads your themes, prep notes, and recent session summaries
+2. Connects to OpenAI Realtime API (`gpt-4o-realtime`)
+3. Coach opens with a contextual greeting in Norwegian
+4. You talk freely — VAD detects when you speak, model handles interrupts
+5. **Ctrl+C** ends the session, generates a summary, saves to `journal/coach/`
 
-The transcription is continuous and streaming — no single audio file is created at the end. Latency matters; output should appear as I talk.
+**Headset recommended** — without it, your mic picks up the AI voice and
+creates feedback.
 
-## Goal
+## Maintenance commands
 
-A personal AI coach I can talk to throughout the day — using proven coaching techniques to help me reflect, think clearly, and move forward.
+The app itself only runs conversations. All maintenance happens via slash
+commands in Claude Code (in `.claude/commands/`):
+
+- `/coach-prep` — write a prep note before your next session
+- `/coach-themes` — review and update your long-running themes
+- `/coach-status` — show active themes + last session summary
+- `/coach-review` — pattern analysis across sessions (weekly/monthly)
 
 ## Stack
 
 - Node.js / TypeScript
-- Streaming speech-to-text (Norwegian)
-- Anthropic Claude for coaching responses
-- Text-to-speech for AI voice output
-- Global hotkey listener
+- OpenAI Realtime API (`gpt-4o-realtime`) over WebSocket
+- `sox` for mic capture, `speaker` for audio output
+- Requires `OPENAI_API_KEY` in `.env`
 
 ## Status
 
-Early ideation. See [`braindump.md`](./braindump.md) for the original thoughts.
+Spec locked, implementation pending. See [`SPEC.md`](./SPEC.md) for the full
+design.
