@@ -9,3 +9,7 @@ build/
 .vscode/
 coverage/
 *.tsbuildinfo
+
+# journal/coach/sessions/ er bevisst IKKE ignorert — sammendrag committes
+# slik at coachen har historikk på tvers av maskiner (samme mønster som
+# life-buddy/journal/).

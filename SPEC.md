@@ -1,7 +1,6 @@
 # Open Coach — Specification
 
-Push-to-talk... nei, faktisk **hands-free** AI-coach på norsk med flytende
-toveis-samtale.
+Hands-free AI-coach på norsk med flytende toveis-samtale via OpenAI Realtime API.
 
 Status: Spec lukket 2026-05-09. Klar for implementasjon.
 
@@ -102,13 +101,15 @@ System prompt vil kodifisere:
 
 ### Stack
 
-- **Node.js / TypeScript**
-- **OpenAI Realtime API** — `gpt-4o-realtime`
+- **Node.js ≥ 20.6** / **TypeScript** (ESM, NodeNext)
+- **OpenAI Realtime API** — `gpt-4o-realtime`. Realtime API er selve
+  toveis-streaming-laget; `sox` og `speaker` er kun OS-audio-glue.
 - **Audio inn:** `sox` spawnet som child process (cross-platform, enkel install)
 - **Audio ut:** `speaker` npm-pakke
 - **WebSocket:** `ws` for Realtime-tilkobling
 - **Format:** PCM 16-bit, 24kHz mono (Realtime API-krav)
-- **API-nøkler:** Krever kun `OPENAI_API_KEY` i `.env`
+- **API-nøkler:** Krever kun `OPENAI_API_KEY` i `.env`. Lastes via Nodes
+  innebygde `--env-file=.env`-flag (ingen `dotenv`-avhengighet).
 
 ### Pris-estimat
 
@@ -251,7 +252,7 @@ Kan kobles til life-buddy sitt `/weekly-review` senere.
 
 Når vi starter koding (i ny sesjon):
 
-1. **Setup:** `npm install` (deps allerede definert: `ws`, `openai`, `speaker` + `tsx`/`typescript`/types). Verifiser at `sox` er installert på systemet.
+1. **Setup:** `npm install` (deps allerede definert: `ws`, `openai`, `speaker` + `tsx`/`typescript`/types). Verifiser at `sox` er installert på systemet. `src/index.ts` må starte med `#!/usr/bin/env node` shebang så `open-coach`-CLI-kommandoen virker etter `npm link`.
 2. **Audio I/O:** mic → PCM stream + PCM stream → speakers (verifisere at lyd
    funker før vi kobler til Realtime)
 3. **Realtime API client:** WebSocket-tilkobling, audio-streaming, event-håndtering
