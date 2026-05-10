@@ -1,8 +1,11 @@
 # Open Coach
 
-A hands-free Norwegian AI coach using OpenAI's Realtime API. Speak naturally,
+A hands-free voice AI coach using OpenAI's Realtime API. Speak naturally,
 get coached with proven techniques (GROW, Socratic questions, intentional
 pauses) — no hotkeys, no typing.
+
+Conversation language and your name are configurable, so you can make it
+feel personal in whatever language you prefer.
 
 ## How it works
 
@@ -11,8 +14,8 @@ $ open-coach
 ```
 
 1. Loads your themes, prep notes, and recent session summaries from `$OPEN_COACH_STORAGE`
-2. Connects to OpenAI Realtime API
-3. Coach opens with a contextual greeting in Norwegian
+2. Connects to OpenAI Realtime API with a coaching system prompt in your configured language
+3. Coach opens with a contextual greeting
 4. You talk freely — VAD detects when you speak, model handles interrupts
 5. Session ends on **Ctrl+C**, **30 min hard cap**, or **2 min of audio silence** (whichever fires first)
 6. Generates a summary, saves full transcript + summary to your storage folder
@@ -32,13 +35,39 @@ npm install
 
 # 3. Configure
 cp .env.example .env
-# Edit .env: set OPENAI_API_KEY, point OPEN_COACH_STORAGE at your storage folder
+# Edit .env — set at minimum:
+#   OPENAI_API_KEY=sk-...
+#   OPEN_COACH_STORAGE=/path/to/your/storage
+#   OPEN_COACH_LANGUAGE=en          # or 'no' for Norwegian
+#   OPEN_COACH_USER_NAME=Your Name  # used in prompts and transcript labels
 
 # 4. Run
 npm run dev
 # or build + link:
 npm run build && npm link && open-coach
 ```
+
+## Configuration
+
+| Variable                       | Default                           | Purpose                                                                |
+|-------------------------------|-----------------------------------|------------------------------------------------------------------------|
+| `OPENAI_API_KEY`              | —                                 | Required.                                                              |
+| `OPEN_COACH_STORAGE`          | `$HOME/.open-coach`               | Where personal data (themes, prep, sessions) lives.                    |
+| `OPEN_COACH_LANGUAGE`         | `en`                              | Conversation language. Ships with `en` and `no`; add more via `i18n.ts`.|
+| `OPEN_COACH_USER_NAME`        | (locale-specific generic)         | Coach addresses you by this; transcript uses it as your line label.    |
+| `OPENAI_REALTIME_MODEL`       | `gpt-4o-realtime-preview`         | Realtime model.                                                        |
+| `OPENAI_SUMMARY_MODEL`        | `gpt-4o-mini`                     | Model used for end-of-session summary.                                 |
+| `MAX_SESSION_MINUTES`         | `30`                              | Hard cap on session length.                                            |
+| `INACTIVITY_TIMEOUT_SECONDS`  | `120`                             | Cutoff after silence on both sides.                                    |
+
+## Adding a language
+
+The system prompts in `prompts/` are written in English and instruct the model to converse in `{{language}}` (substituted at runtime). To add a new language:
+
+1. Add a new entry in `STRINGS` and extend `resolveLocale` in `src/i18n.ts` with the language name (used in prompts), session-file headers, summary field labels, and default user-name fallback.
+2. Set `OPEN_COACH_LANGUAGE=<lang>` in your `.env`.
+
+Unknown locales fall back to `en`.
 
 ## Storage
 
@@ -57,13 +86,11 @@ commands in Claude Code (in `.claude/commands/`):
 - `/coach-status` — show active themes + last session summary
 - `/coach-review` — pattern analysis across sessions (weekly/monthly)
 
+These commands respect `OPEN_COACH_LANGUAGE` — they show you output (and
+write file content) in the configured language.
+
 ## Stack
 
 - Node.js ≥ 20.6 / TypeScript (ESM, NodeNext)
 - OpenAI Realtime API over raw WebSocket (`ws`); summary call via built-in `fetch`. No OpenAI SDK.
 - `sox` for both mic capture (`rec`) and playback (`play`) — no native npm bindings
-
-## Status
-
-Spec locked, implementation pending. See [`SPEC.md`](./SPEC.md) for the full
-design.

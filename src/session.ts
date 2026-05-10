@@ -1,38 +1,46 @@
 import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import { createWriteStream, type WriteStream } from "node:fs";
 import { join } from "node:path";
-import { PROMPTS_DIR } from "./paths.js";
+import { loadPrompt, substitute } from "./context.js";
+import type { I18nStrings } from "./i18n.js";
+
+export interface SessionOptions {
+  storageDir: string;
+  startedAt: Date;
+  strings: I18nStrings;
+  userPromptName: string;
+  userTranscriptLabel: string;
+}
 
 export class SessionLogger {
-  private readonly storageDir: string;
-  private readonly startedAt: Date;
+  private readonly opts: SessionOptions;
   private readonly partialPath: string;
   private readonly finalPath: string;
   private writeStream: WriteStream | null = null;
   private coachBuffer = "";
-  // Coach-replikk som venter på at parets user-transcript skal komme.
-  // Realtime-modellen begynner å svare før Whisper er ferdig å transkribere
-  // brukeren, så uten dette ender fila opp med Coach-linje før Edgar-linje.
+  // Coach utterance waiting for the paired user transcript to arrive.
+  // The Realtime model starts answering before Whisper finishes the user
+  // transcription, so without this the file ends up with Coach line before
+  // the user's line.
   private pendingCoachLine: string | null = null;
-  // Settes når VAD detekterer slutt på en bruker-tur — vi vet da at en
-  // user-transcript er på vei og bør skrives før neste coach-replikk.
+  // Set when VAD detects the end of a user turn — we know a user transcript
+  // is on the way and should be written before the next coach utterance.
   private expectingUserTranscript = false;
 
-  constructor(storageDir: string, startedAt: Date) {
-    this.storageDir = storageDir;
-    this.startedAt = startedAt;
-    const stamp = formatStamp(startedAt);
-    const sessionsDir = join(storageDir, "sessions");
+  constructor(opts: SessionOptions) {
+    this.opts = opts;
+    const stamp = formatStamp(opts.startedAt);
+    const sessionsDir = join(opts.storageDir, "sessions");
     this.partialPath = join(sessionsDir, `${stamp}.md.partial`);
     this.finalPath = join(sessionsDir, `${stamp}.md`);
   }
 
   async start(): Promise<void> {
-    await mkdir(join(this.storageDir, "sessions"), { recursive: true });
+    await mkdir(join(this.opts.storageDir, "sessions"), { recursive: true });
     this.writeStream = createWriteStream(this.partialPath, { flags: "a" });
-    this.writeLine(`# Coach-sesjon ${formatHuman(this.startedAt)}`);
+    this.writeLine(`# ${this.opts.strings.sessionTitlePrefix} ${formatHuman(this.opts.startedAt)}`);
     this.writeLine("");
-    this.writeLine("## Full transkripsjon");
+    this.writeLine(this.opts.strings.transcriptHeader);
     this.writeLine("");
   }
 
@@ -41,16 +49,16 @@ export class SessionLogger {
   }
 
   appendUser(text: string): void {
-    // Hvis coach-deltas er midt i flight når user-transcript kommer (f.eks.
-    // bruker avbrøt, eller .done-eventet kom etter user-transcript), avslutt
-    // den replikken først.
+    // If coach deltas are mid-flight when user-transcript lands (e.g. user
+    // interrupted, or .done event fired after user-transcript), close out
+    // that utterance first.
     if (this.coachBuffer.trim().length > 0) this.endCoachUtterance();
 
     this.expectingUserTranscript = false;
 
     const trimmed = text.trim();
     if (trimmed.length > 0) {
-      this.writeLine(`Edgar: ${trimmed}`);
+      this.writeLine(`${this.opts.userTranscriptLabel}: ${trimmed}`);
       this.writeLine("");
     }
     this.flushPendingCoach();
@@ -66,18 +74,18 @@ export class SessionLogger {
     if (text.length === 0) return;
 
     if (this.expectingUserTranscript) {
-      // En user-transcript er på vei. Hold coach-replikken til den er skrevet,
-      // så fila får riktig samtaleflyt (Edgar -> Coach).
+      // A user transcript is on the way. Hold the coach utterance until it's
+      // written, so the file shows the natural flow (user → coach).
       if (this.pendingCoachLine !== null) {
-        // Skal i praksis ikke skje — to coach-replikker uten user-tur imellom.
-        // Bevar dataen ved å skrive den forrige før vi overskriver.
+        // In practice shouldn't happen — two coach utterances without a user
+        // turn in between. Preserve data by writing the previous one first.
         this.writeCoach(this.pendingCoachLine);
       }
       this.pendingCoachLine = text;
       return;
     }
 
-    // Ingen user-transcript ventet — coach-opener eller whisper allerede landet.
+    // No user transcript expected — coach opener, or whisper already landed.
     this.writeCoach(text);
   }
 
@@ -88,7 +96,7 @@ export class SessionLogger {
   }
 
   private writeCoach(text: string): void {
-    this.writeLine(`Coach: ${text}`);
+    this.writeLine(`${this.opts.strings.coachLabel}: ${text}`);
     this.writeLine("");
   }
 
@@ -98,8 +106,8 @@ export class SessionLogger {
   }
 
   async finish(apiKey: string): Promise<string> {
-    // Tøm eventuelt in-flight coach-buffer (avbrutt midt i replikk), så
-    // tøm pending coach-linje (dukker opp hvis user-transcript aldri kom).
+    // Flush any in-flight coach buffer (interrupted mid-utterance), then any
+    // pending coach line (kept around if the user transcript never landed).
     this.endCoachUtterance();
     this.flushPendingCoach();
     if (this.writeStream) {
@@ -109,21 +117,26 @@ export class SessionLogger {
     }
 
     const partial = await readFile(this.partialPath, "utf8");
-    const transcriptStart = partial.indexOf("## Full transkripsjon");
+    const transcriptStart = partial.indexOf(this.opts.strings.transcriptHeader);
     const transcriptOnly = transcriptStart >= 0 ? partial.slice(transcriptStart) : partial;
 
     let summarySection: string;
     try {
-      const summary = await generateSummary(apiKey, transcriptOnly);
+      const summary = await generateSummary({
+        apiKey,
+        transcript: transcriptOnly,
+        strings: this.opts.strings,
+        userName: this.opts.userPromptName,
+      });
       summarySection = summary.trim().length > 0
         ? summary.trim() + "\n\n"
-        : "## Sammendrag\n\n*(Tom transkripsjon — ingen sammendrag.)*\n\n";
+        : `${this.opts.strings.summaryHeader}\n\n${this.opts.strings.emptySummary}\n\n`;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      summarySection = `## Sammendrag\n\n*(Sammendrag-generering feilet: ${msg})*\n\n`;
+      summarySection = `${this.opts.strings.summaryHeader}\n\n${this.opts.strings.summaryErrorTemplate(msg)}\n\n`;
     }
 
-    const headerLine = `# Coach-sesjon ${formatHuman(this.startedAt)}`;
+    const headerLine = `# ${this.opts.strings.sessionTitlePrefix} ${formatHuman(this.opts.startedAt)}`;
     const final = `${headerLine}\n\n${summarySection}${transcriptOnly}`;
 
     await writeFile(this.finalPath, final, "utf8");
@@ -142,21 +155,37 @@ function formatHuman(d: Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-async function generateSummary(apiKey: string, transcript: string): Promise<string> {
-  const systemPrompt = await readFile(join(PROMPTS_DIR, "session-summary.md"), "utf8");
+interface SummaryRequest {
+  apiKey: string;
+  transcript: string;
+  strings: I18nStrings;
+  userName: string;
+}
+
+async function generateSummary(req: SummaryRequest): Promise<string> {
+  const raw = await loadPrompt("session-summary.md");
+  const systemPrompt = substitute(raw, {
+    userName: req.userName,
+    language: req.strings.languageName,
+    summaryHeader: req.strings.summaryHeader,
+    topicLabel: req.strings.summaryTopicLabel,
+    insightsLabel: req.strings.summaryInsightsLabel,
+    patternsLabel: req.strings.summaryPatternsLabel,
+    actionItemsLabel: req.strings.summaryActionItemsLabel,
+  });
   const summaryModel = process.env.OPENAI_SUMMARY_MODEL ?? "gpt-4o-mini";
 
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
+      Authorization: `Bearer ${req.apiKey}`,
     },
     body: JSON.stringify({
       model: summaryModel,
       messages: [
         { role: "system", content: systemPrompt },
-        { role: "user", content: transcript },
+        { role: "user", content: req.transcript },
       ],
       temperature: 0.3,
     }),

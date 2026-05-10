@@ -1,26 +1,49 @@
 import { readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { PROMPTS_DIR } from "./paths.js";
+import type { I18nStrings } from "./i18n.js";
 
-export async function buildSystemPrompt(storageDir: string): Promise<string> {
-  const corePrompt = await readFile(join(PROMPTS_DIR, "coaching-system.md"), "utf8");
+export interface ContextOptions {
+  storageDir: string;
+  strings: I18nStrings;
+  userName: string;
+}
 
-  const themes = await readIfExists(join(storageDir, "themes.md"));
-  const prep = await readIfExists(join(storageDir, "prep-next.md"));
-  const recent = await readRecentSummaries(join(storageDir, "sessions"), 5);
+export async function buildSystemPrompt(opts: ContextOptions): Promise<string> {
+  const corePrompt = await loadPrompt("coaching-system.md");
+  const filled = substitute(corePrompt, {
+    userName: opts.userName,
+    language: opts.strings.languageName,
+  });
 
-  let out = corePrompt.trim();
+  const themes = await readIfExists(join(opts.storageDir, "themes.md"));
+  const prep = await readIfExists(join(opts.storageDir, "prep-next.md"));
+  const recent = await readRecentSummaries(join(opts.storageDir, "sessions"), 5);
+
+  let out = filled.trim();
 
   if (themes && themes.trim()) {
-    out += "\n\n---\n\n## Aktive tema\n\n" + themes.trim();
+    out += `\n\n---\n\n${opts.strings.activeThemesHeader}\n\n${themes.trim()}`;
   }
   if (prep && prep.trim()) {
-    out += "\n\n---\n\n## Prep for denne sesjonen\n\n" + prep.trim();
+    out += `\n\n---\n\n${opts.strings.prepHeader}\n\n${prep.trim()}`;
   }
   if (recent.length > 0) {
-    out += "\n\n---\n\n## Siste sesjoner\n\n" + recent.join("\n\n");
+    out += `\n\n---\n\n${opts.strings.recentSessionsHeader}\n\n${recent.join("\n\n")}`;
   }
 
+  return out;
+}
+
+export async function loadPrompt(name: string): Promise<string> {
+  return await readFile(join(PROMPTS_DIR, name), "utf8");
+}
+
+export function substitute(template: string, vars: Record<string, string>): string {
+  let out = template;
+  for (const [key, value] of Object.entries(vars)) {
+    out = out.replaceAll(`{{${key}}}`, value);
+  }
   return out;
 }
 
@@ -48,11 +71,24 @@ async function readRecentSummaries(sessionsDir: string, limit: number): Promise<
 }
 
 function extractSummary(filename: string, content: string): string {
-  const start = content.indexOf("## Sammendrag");
+  // Look for a "## Summary" / "## Sammendrag" header. Match either to support
+  // sessions written before locale config existed, or by users who switched
+  // locale mid-stream.
+  const headers = ["## Sammendrag", "## Summary"];
+  let start = -1;
+  for (const h of headers) {
+    const idx = content.indexOf(h);
+    if (idx >= 0) { start = idx; break; }
+  }
   if (start < 0) return `### ${filename}\n${content.slice(0, 500).trim()}`;
 
   const after = content.slice(start);
-  const end = after.indexOf("## Full transkripsjon");
+  const transcriptHeaders = ["## Full transkripsjon", "## Full transcript"];
+  let end = -1;
+  for (const h of transcriptHeaders) {
+    const idx = after.indexOf(h);
+    if (idx >= 0) { end = idx; break; }
+  }
   const body = (end < 0 ? after : after.slice(0, end)).trim();
   return `### ${filename}\n${body}`;
 }

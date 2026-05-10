@@ -1,43 +1,58 @@
 ---
-description: Foreslå oppdateringer til themes.md basert på siste sesjoner
+description: Suggest updates to themes.md based on recent sessions
 ---
 
-Du hjelper Edgar holde `themes.md` skarp ved å foreslå endringer basert på
-mønstre i siste sesjoner.
+You help the user keep `themes.md` sharp by proposing changes based on
+patterns in recent sessions. All output you show the user — analysis,
+proposed diffs, and any text written to `themes.md` — must be in the user's
+configured language (`$LANG` below). Use the user's configured name where
+natural.
 
-## Storage-path
+## Config
 
 ```bash
 STORAGE="${OPEN_COACH_STORAGE:-$HOME/.open-coach}"
+LANG="${OPEN_COACH_LANGUAGE:-en}"
+USER_NAME="${OPEN_COACH_USER_NAME:-}"
 THEMES="$STORAGE/themes.md"
 SESSIONS="$STORAGE/sessions"
 ```
 
-## Flyt
+## Flow
 
-1. **Les `$THEMES`** — vis nåværende seksjoner (typisk `## Aktive`, `## Pause`, `## Verdier`).
-2. **Les siste 5-10 sesjoner** fra `$SESSIONS` (sortert nyest først). Lese kun
-   `## Sammendrag`-seksjonen i hver fil.
-3. **Analyser:**
-   - Hvilke tema kommer opp gjentatte ganger som ikke står i `themes.md`?
-   - Hvilke tema i `themes.md` har ikke vært nevnt på lenge — kandidater for `## Pause`?
-   - Hvilke nye verdier eller mønstre har Edgar uttrykt?
-4. **Presenter forslag** i dette formatet:
+1. **Read `$THEMES`** — show the current sections. The typical English
+   layout is `## Active`, `## Paused`, `## Values`; localized files use the
+   equivalent headings in `$LANG`. If the file does not exist, say so in
+   `$LANG`.
+2. **Read the most recent 5–10 sessions** from `$SESSIONS` (newest first).
+   Read only the summary section of each file — the header is `## Summary`
+   in English files, and the equivalent translation in localized files.
+3. **Analyze:**
+   - Which themes recur that aren't in `themes.md`?
+   - Which themes in `themes.md` haven't been mentioned for a while —
+     candidates for the paused section?
+   - Which new values or patterns has the user expressed?
+4. **Present proposals** in `$LANG`. English example:
    ```
-   Forslag til endringer:
-     + Legg til under ## Aktive: "{nytt tema}" (fra N av M sesjoner)
-     ~ Oppdater "{eksisterende tema}": {hva som endres}
-     - Flytt "{tema}" til ## Pause (ikke nevnt på X sesjoner)
+   Proposed changes:
+     + Add to ## Active: "{new theme}" (from N of M sessions)
+     ~ Update "{existing theme}": {what changes}
+     - Move "{theme}" to ## Paused (not mentioned in last X sessions)
    ```
-5. **Spør:** `Godkjenn? [y/n/edit]`
-   - **y:** skriv endringene til `$THEMES`.
-   - **n:** avbryt uten endringer.
-   - **edit:** la Edgar redigere forslaget før det skrives.
+   Translate the wording (verbs, section labels) into the configured
+   language while keeping the same shape.
+5. **Ask** for approval: `Approve? [y/n/edit]` (translate into `$LANG`).
+   Interpret the user's answer based on intent in any language:
+   - **Yes:** write the changes to `$THEMES`.
+   - **No:** abort without changes.
+   - **Edit:** let the user adjust the proposal before it's written.
 
-## Regler
+## Rules
 
-- Foreslå maks 3-5 endringer om gangen. Hvis det er mer å si, plukk det
-  viktigste.
-- Bruk Edgars eget språk fra sesjonene — ikke parafrasér til coach-sjargong.
-- Ikke fjern noe fra `## Verdier` uten eksplisitt godkjenning.
-- Vis alltid en diff før du skriver.
+- Propose at most 3–5 changes per run. If there's more to say, pick the most
+  important.
+- Use the user's own wording from sessions — don't paraphrase into
+  coach-jargon.
+- Don't remove anything from the values section without explicit approval.
+- Always show a diff before writing.
+- The contents you write to `themes.md` must be in `$LANG`.

@@ -1,53 +1,66 @@
 ---
-description: Mønsteranalyse på tvers av flere coach-sesjoner (uke/måned)
+description: Pattern analysis across multiple coach sessions (week / month)
 ---
 
-Hjelp Edgar se mønstre på tvers av flere sesjoner.
+Help the user see patterns across multiple sessions. All output you show
+must be in the user's configured language (`$LANG` below).
 
-## Storage-path
+## Config
 
 ```bash
 STORAGE="${OPEN_COACH_STORAGE:-$HOME/.open-coach}"
+LANG="${OPEN_COACH_LANGUAGE:-en}"
 SESSIONS="$STORAGE/sessions"
 ```
 
-## Argumenter
+## Arguments
 
-- `uke` (default) — siste 7 dagers sesjoner
-- `måned` — siste 30 dagers sesjoner
-- `alle` — alle sesjoner
+- `week` (default) — sessions from the last 7 days
+- `month` — sessions from the last 30 days
+- `all` — every session
 
-## Flyt
+Accept the equivalent word in any language based on intent.
 
-1. **Velg vindu:** finn sesjoner i `$SESSIONS` som matcher tidsvinduet (filnavn er `YYYY-MM-DD-HHMM.md`).
-2. **Les sammendragene** (kun `## Sammendrag`-seksjonen, ikke full transkripsjon — det blir for mye).
-3. **Analyser:**
-   - **Gjentakende tema** — hva kommer opp i 2+ sesjoner?
-   - **Action items — fullført?** Hvis et action item fra en tidlig sesjon ikke er nevnt senere, flagg det.
-   - **Mønstre Edgar selv har sett** — fra `Mønstre`-feltet i sammendrag.
-   - **Mønstre Edgar IKKE har sett** — ting som gjentar seg uten at han har lagt merke til det. Vær varsom her — speil heller enn å diagnostisere.
-   - **Tone-utvikling** — er stemningen i sesjonene tyngre/lettere over tid?
-4. **Output:**
+## Flow
+
+1. **Pick the window:** find sessions in `$SESSIONS` whose filenames match
+   the time window (filename format is `YYYY-MM-DD-HHMM.md`).
+2. **Read summaries** — only the summary section of each file. The header
+   is `## Summary` in English files, and the equivalent translation in
+   localized files. Do not load the full transcripts; that's too much.
+3. **Analyze:**
+   - **Recurring themes** — what comes up in 2+ sessions?
+   - **Action items — done?** If an action item from an earlier session
+     isn't mentioned later, flag it.
+   - **Patterns the user has seen** — from the "patterns" field in each
+     summary (header name varies by language).
+   - **Patterns the user hasn't seen** — things that recur without them
+     noticing. Be careful here — mirror rather than diagnose.
+   - **Tone arc** — is the mood across sessions getting heavier / lighter?
+4. **Output** in `$LANG`. English example:
    ```
-   ## Review {uke|måned} ({N} sesjoner: {dato} til {dato})
+   ## Review {week|month} ({N} sessions: {date} to {date})
 
-   ### Gjentakende tema
+   ### Recurring themes
    - ...
 
    ### Action items
-   - ✓ Fullført / nevnt: ...
-   - ⏳ Åpne: ...
+   - ✓ Done / mentioned: ...
+   - ⏳ Open: ...
 
-   ### Det jeg legger merke til
-   - ... (forsiktig, speilende)
+   ### What I notice
+   - ... (carefully, mirroring)
 
-   ### Forslag
-   - Tema å ta opp neste sesjon: ...
-   - Eventuelle endringer til themes.md (foreslå /coach-themes hvis flere)
+   ### Suggestions
+   - Topic for next session: ...
+   - Possible themes.md changes (suggest /coach-themes if several)
    ```
+   Translate the headings into the configured language while keeping the
+   same shape.
 
-## Regler
+## Rules
 
-- Ikke fabrikér tema som ikke er der. Hvis ingenting tydelig gjentar seg, si det.
-- Ikke skriv noe til disk. Dette er kun en lese-/analyse-kommando.
-- Bruk Edgars eget språk fra sesjonene.
+- Don't fabricate themes that aren't there. If nothing clearly recurs, say
+  so.
+- Don't write anything to disk. This is read-only.
+- Use the user's own wording from sessions.

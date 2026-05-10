@@ -1,35 +1,46 @@
 ---
-description: Skriv eller vis prep for neste coach-sesjon
+description: Write or show prep for the next coach session
 ---
 
-Du forvalter prep-fila for Edgars coach-app.
+You manage the prep file for the user's coach app. All output you show the
+user — questions, confirmations, and any text written to disk — must be in
+the user's configured language (`$LANG` below). Use the user's configured
+name where natural.
 
-## Storage-path
+## Config
 
 ```bash
 STORAGE="${OPEN_COACH_STORAGE:-$HOME/.open-coach}"
+LANG="${OPEN_COACH_LANGUAGE:-en}"
+USER_NAME="${OPEN_COACH_USER_NAME:-}"
 PREP="$STORAGE/prep-next.md"
 ```
 
-Opprett `$STORAGE` hvis den ikke finnes.
+Create `$STORAGE` if it does not exist.
 
-## Flyt
+## Flow
 
-1. Hvis `$PREP` finnes — vis innholdet først.
-2. Spør: **"Hva vil du prepe for neste sesjon?"** (eller "tøm" for å slette, "behold" for å la den stå).
-3. Basert på svaret:
-   - **Tekst:** skriv til `$PREP` med format:
+1. If `$PREP` exists — show its contents first.
+2. Ask the user what they want to prep for the next session, in `$LANG`.
+   Also tell them they can ask to clear it (delete) or keep it as-is.
+   English example: "What do you want to prep for the next session? (or
+   'clear' / 'keep')". Translate equivalently for other languages.
+3. Interpret the user's answer based on intent (in any language):
+   - **Free text:** write to `$PREP` with a heading in `$LANG`. English
+     example of the file contents:
      ```markdown
-     # Prep for neste sesjon
+     # Prep for next session
 
-     {det Edgar sa}
+     {what the user said}
      ```
-     Bekreft: `✓ Lagret til $PREP`
-   - **"tøm" / "slett":** slett `$PREP`. Bekreft: `✓ Prep tømt.`
-   - **"behold":** ikke gjør noe. Bekreft: `→ Beholder eksisterende prep.`
+     Translate the heading for the configured language. Confirm in `$LANG`
+     (e.g. `✓ Saved to $PREP`).
+   - **Clear / delete intent:** delete `$PREP`. Confirm in `$LANG`.
+   - **Keep intent:** do nothing. Confirm in `$LANG`.
 
-## Regler
+## Rules
 
-- Ikke rør `themes.md` eller noe annet i storage-mappa.
-- Ikke parafrasér — skriv det Edgar sa, ordrett. Han kan formatere det selv.
-- Hvis Edgar gir flere setninger, behold linjeskiftene.
+- Don't touch `themes.md` or anything else in the storage folder.
+- Don't paraphrase — write what the user said, verbatim. They can format it
+  themselves.
+- If the user gives multiple sentences, preserve line breaks.

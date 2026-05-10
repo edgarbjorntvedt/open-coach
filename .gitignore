@@ -13,10 +13,10 @@ coverage/
 # Throwaway spike for end-to-end audio + Realtime validation
 spike.ts
 
-# Audio debug-dumps (for når vi tester mic/play-pipelines)
+# Audio debug dumps from testing the mic/play pipelines
 *.wav
 *.pcm
 *.raw
 
-# Personlige sesjoner/themes/prep bor i en ekstern storage-mappe pekt på
-# via $OPEN_COACH_STORAGE. Skal ikke havne her.
+# Personal sessions/themes/prep live in an external storage folder pointed
+# to by $OPEN_COACH_STORAGE. They should not end up here.

@@ -1,8 +1,10 @@
 # Open Coach — Specification
 
-Hands-free AI-coach på norsk med flytende toveis-samtale via OpenAI Realtime API.
+Hands-free AI-coach med flytende toveis-samtale via OpenAI Realtime API.
+Språk og brukernavn er env-konfig (`OPEN_COACH_LANGUAGE`,
+`OPEN_COACH_USER_NAME`); skipper med `en` og `no` ut av boksen.
 
-Status: Spec lukket 2026-05-09. Klar for implementasjon.
+Status: Spec lukket 2026-05-09. Internasjonalisering lagt til 2026-05-10.
 
 ---
 
@@ -27,7 +29,7 @@ $ open-coach
 2. Bygger system prompt med coaching-stil + tema + prep + historikk
 3. Kobler til OpenAI Realtime API, sender `session.update` med system prompt
 4. Sender `response.create` umiddelbart slik at coachen åpner samtalen
-5. Coach åpner kontekstuelt:
+5. Coach åpner kontekstuelt på konfigurert språk, med konfigurert navn:
    - *"Hei Edgar. Jeg ser du har lagt en lapp om en vanskelig samtale på
      mandag. Vil du starte der, eller har noe annet kommet opp siden?"*
 
@@ -80,7 +82,9 @@ System prompt vil kodifisere:
 - **Speiling og refleksjon** — gjenta kjernen i det jeg sier
 - **Stillhet som verktøy** — pauser er ok, ikke fyll dem
 - **Ikke-dømmende, varm tone**
-- **Norsk språk** gjennom hele samtalen
+- **Språk** følger `OPEN_COACH_LANGUAGE` (default `en`). Selve prompten
+  ligger i `prompts/<lang>/coaching-system.md` slik at den kan skrives
+  naturlig per språk, ikke maskinoversettes.
 
 ---
 
@@ -153,10 +157,15 @@ open-coach/
 │   │   ├── recorder.ts         # mic → PCM stream (sox rec)
 │   │   └── player.ts           # PCM stream → speakers (sox play)
 │   ├── context.ts              # bygger system prompt fra prompts/ + storage
-│   └── session.ts              # transkripsjon + sammendrag-lagring
+│   ├── session.ts              # transkripsjon + sammendrag-lagring
+│   └── i18n.ts                 # locale-tabell for fil-headers + fallback
 ├── prompts/
-│   ├── coaching-system.md      # GROW + sokratiske teknikker (kjerne-prompt)
-│   └── session-summary.md      # prompt for å generere sammendrag ved avslutning
+│   ├── en/
+│   │   ├── coaching-system.md  # GROW + sokratiske teknikker, engelsk
+│   │   └── session-summary.md  # sammendrag-prompt, engelsk
+│   └── no/
+│       ├── coaching-system.md  # GROW + sokratiske teknikker, norsk
+│       └── session-summary.md  # sammendrag-prompt, norsk
 ├── SPEC.md                     # denne fila
 ├── README.md
 ├── package.json
@@ -181,8 +190,10 @@ $OPEN_COACH_STORAGE/
 
 ### `themes.md`
 
-Langvarig fritekst-markdown Edgar eier. Coach leser hver sesjon. Typisk struktur:
-`## Aktive`, `## Pause`, `## Verdier`.
+Langvarig fritekst-markdown brukeren eier. Coach leser hver sesjon. Typisk
+struktur på norsk: `## Aktive`, `## Pause`, `## Verdier`. På engelsk:
+`## Active`, `## Paused`, `## Values`. Slash-kommandoene følger
+`OPEN_COACH_LANGUAGE` når de skriver hit.
 
 ### `prep-next.md`
 
@@ -196,10 +207,13 @@ I dag vil jeg snakke om [...]
 
 ### `sessions/YYYY-MM-DD-HHMM.md`
 
-Hver sesjon lagres med både **full toveis-transkripsjon** (alt Edgar og coachen
-sier) og et generert sammendrag på toppen. Begge sider transkriberes via
-Realtime API: bruker via `input_audio_transcription`, coach via
-`response.audio_transcript.delta`.
+Hver sesjon lagres med både **full toveis-transkripsjon** og et generert
+sammendrag på toppen. Begge sider transkriberes via Realtime API: bruker via
+`input_audio_transcription`, coach via `response.audio_transcript.delta`.
+
+Strukturen er localized — header-strenger og bruker-label kommer fra
+`src/i18n.ts`. Norsk eksempel (`OPEN_COACH_LANGUAGE=no`,
+`OPEN_COACH_USER_NAME=Edgar`):
 
 ```markdown
 # Coach-sesjon 2026-05-09 19:34
@@ -213,6 +227,9 @@ Realtime API: bruker via `input_audio_transcription`, coach via
 Coach: Hei Edgar...
 Edgar: ...
 ```
+
+Engelsk: `# Coach session ...`, `## Summary`, `## Full transcript`, og
+bruker-label kommer fra `OPEN_COACH_USER_NAME` (eller `You` som fallback).
 
 **Ingen app-side cap på historikk-størrelse.** Hele storage-mappa kan i
 prinsippet sendes som kontekst. Det er skills sitt ansvar (`/coach-themes`,

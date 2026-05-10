@@ -9,6 +9,7 @@ import { startPlayer } from "./audio/player.js";
 import { connectRealtime } from "./realtime.js";
 import { buildSystemPrompt } from "./context.js";
 import { SessionLogger } from "./session.js";
+import { getStrings, resolveLocale, resolveUserIdentity } from "./i18n.js";
 
 async function main(): Promise<void> {
   const apiKey = process.env.OPENAI_API_KEY;
@@ -16,16 +17,29 @@ async function main(): Promise<void> {
   const storageDir = process.env.OPEN_COACH_STORAGE ?? join(homedir(), ".open-coach");
   const maxMinutes = parsePositiveInt(process.env.MAX_SESSION_MINUTES, 30);
   const inactivitySec = parsePositiveInt(process.env.INACTIVITY_TIMEOUT_SECONDS, 120);
+  const locale = resolveLocale(process.env.OPEN_COACH_LANGUAGE);
+  const strings = getStrings(locale);
+  const identity = resolveUserIdentity(process.env.OPEN_COACH_USER_NAME, strings);
 
   await preflight(apiKey, storageDir);
 
-  const instructions = await buildSystemPrompt(storageDir);
+  const instructions = await buildSystemPrompt({
+    storageDir,
+    strings,
+    userName: identity.promptName,
+  });
   const startedAt = new Date();
-  const session = new SessionLogger(storageDir, startedAt);
+  const session = new SessionLogger({
+    storageDir,
+    startedAt,
+    strings,
+    userPromptName: identity.promptName,
+    userTranscriptLabel: identity.transcriptLabel,
+  });
   await session.start();
 
-  console.log("→ Headset anbefalt — uten får mic-en feedback fra høyttalerne.");
-  console.log(`→ Kobler til ${model} ...`);
+  console.log("→ Headset recommended — without one, your mic picks up the AI voice and creates feedback.");
+  console.log(`→ Connecting to ${model} (language: ${locale}) ...`);
 
   const player = startPlayer();
   const recorder = startRecorder();
@@ -37,7 +51,7 @@ async function main(): Promise<void> {
   const shutdown = async (reason: string): Promise<void> => {
     if (shuttingDown) return;
     shuttingDown = true;
-    console.log(`\n→ Avslutter (${reason}) ...`);
+    console.log(`\n→ Shutting down (${reason}) ...`);
     clearInterval(activityInterval);
     clearTimeout(maxTimer);
     recorder.stop();
@@ -45,10 +59,10 @@ async function main(): Promise<void> {
     rt.close();
     try {
       const final = await session.finish(apiKey!);
-      console.log(`✓ Lagret: ${final}`);
+      console.log(`✓ Saved: ${final}`);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      console.error(`✗ Klarte ikke å fullføre sesjons-fil: ${msg}`);
+      console.error(`✗ Failed to finalize session file: ${msg}`);
     }
     process.exit(0);
   };
@@ -59,14 +73,14 @@ async function main(): Promise<void> {
     instructions,
     events: {
       onReady: () => {
-        console.log("✓ Tilkoblet. Snakk i veien. Ctrl+C for å avslutte.\n");
+        console.log("✓ Connected. Start talking. Ctrl+C to end.\n");
         touchActivity();
       },
       onAudio: (chunk) => {
         player.write(chunk);
       },
       onUserTranscript: (text) => {
-        process.stdout.write(`\nDu: ${text}\n`);
+        process.stdout.write(`\n${identity.transcriptLabel}: ${text}\n`);
         session.appendUser(text);
       },
       onCoachTranscriptDelta: (delta) => {
@@ -83,11 +97,11 @@ async function main(): Promise<void> {
       },
       onCoachResponseDone: touchActivity,
       onError: (err) => {
-        console.error("\nAPI-feil:", err);
+        console.error("\nAPI error:", err);
       },
       onClose: (code, reason) => {
         if (!shuttingDown) {
-          void shutdown(`WebSocket lukket (${code})${reason ? ` ${reason}` : ""}`);
+          void shutdown(`WebSocket closed (${code})${reason ? ` ${reason}` : ""}`);
         }
       },
     },
@@ -105,7 +119,7 @@ async function main(): Promise<void> {
 
   const activityInterval = setInterval(() => {
     if (Date.now() - lastActivity > inactivitySec * 1000) {
-      void shutdown(`inaktivitet ${inactivitySec}s`);
+      void shutdown(`inactivity ${inactivitySec}s`);
     }
   }, 5_000);
 
@@ -129,13 +143,13 @@ async function preflight(apiKey: string | undefined, storageDir: string): Promis
   for (const bin of ["rec", "play"]) {
     const r = spawnSync("which", [bin], { stdio: "ignore" });
     if (r.status !== 0) {
-      die(`Mangler '${bin}' i PATH. Installer sox: 'sudo apt install sox libsox-fmt-all' (Linux) eller 'brew install sox' (macOS).`);
+      die(`Missing '${bin}' on PATH. Install sox: 'sudo apt install sox libsox-fmt-all' (Linux) or 'brew install sox' (macOS).`);
     }
   }
 
   // 2. API key
   if (!apiKey || !apiKey.trim()) {
-    die("OPENAI_API_KEY er ikke satt. Kjør med 'npm run dev' eller 'node --env-file=.env dist/index.js'.");
+    die("OPENAI_API_KEY is not set. Run with 'npm run dev' or 'node --env-file=.env dist/index.js'.");
   }
 
   // 3. Storage path writable
@@ -146,19 +160,19 @@ async function preflight(apiKey: string | undefined, storageDir: string): Promis
     await unlink(probe);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    die(`Kan ikke skrive til OPEN_COACH_STORAGE (${storageDir}): ${msg}`);
+    die(`Cannot write to OPEN_COACH_STORAGE (${storageDir}): ${msg}`);
   }
 
   // 4. Mic available — 50 ms silent capture, discard.
   const micTest = spawnSync("rec", ["-q", "-n", "trim", "0", "0.05"], { stdio: "ignore" });
   if (micTest.status !== 0) {
-    console.warn("⚠ Mic-test feilet — fortsetter, men sjekk audio-input hvis sesjonen ikke hører deg.");
+    console.warn("⚠ Mic test failed — continuing, but check audio input if the session can't hear you.");
   }
 
   // 5. Audio out — 50 ms tone.
   const playTest = spawnSync("play", ["-q", "-n", "synth", "0.05", "sine", "800"], { stdio: "ignore" });
   if (playTest.status !== 0) {
-    console.warn("⚠ Audio-out-test feilet — fortsetter, men sjekk audio-output hvis du ikke hører coachen.");
+    console.warn("⚠ Audio out test failed — continuing, but check audio output if you can't hear the coach.");
   }
 }
 

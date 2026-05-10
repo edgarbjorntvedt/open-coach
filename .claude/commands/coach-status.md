@@ -1,19 +1,28 @@
 ---
-description: Vis aktive tema og siste sesjons-sammendrag
+description: Show active themes and the most recent session summary
 ---
 
-Vis Edgar status på coachen.
+Show the user the current state of the coach. All output must be in the
+user's configured language (`$LANG` below).
 
-## Storage-path
+## Config
 
 ```bash
 STORAGE="${OPEN_COACH_STORAGE:-$HOME/.open-coach}"
+LANG="${OPEN_COACH_LANGUAGE:-en}"
 ```
 
-## Flyt
+## Flow
 
-1. **Themes:** Les `$STORAGE/themes.md` og vis seksjonen `## Aktive`. Hvis fila ikke finnes, si `Ingen themes.md ennå.`
-2. **Prep:** Hvis `$STORAGE/prep-next.md` finnes, vis innholdet under overskriften "**Prep for neste sesjon:**". Hvis ikke, hopp over.
-3. **Siste sesjon:** Finn nyeste fil i `$STORAGE/sessions/*.md` (sortert), og vis kun `## Sammendrag`-seksjonen. Hvis ingen sesjoner finnes, si `Ingen sesjoner enda.`
+1. **Themes:** Read `$STORAGE/themes.md` and show the active section. The
+   English heading is `## Active`; localized files use the equivalent
+   translation. If the file does not exist, say so in `$LANG`.
+2. **Prep:** If `$STORAGE/prep-next.md` exists, show its contents under a
+   localized "Prep for next session" heading. If not, skip.
+3. **Latest session:** Find the newest file in `$STORAGE/sessions/*.md`
+   (sorted), and show only the summary section. The English heading is
+   `## Summary`; localized files use the equivalent translation. If no
+   sessions exist, say so in `$LANG`.
 
-Format output i terminalen, lett å lese. Ikke send noe til disk.
+Format the terminal output to be easy to scan. Don't write anything to disk.
+All headings and any commentary you add must be in `$LANG`.
