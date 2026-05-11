@@ -10,6 +10,7 @@ name where natural.
 ## Config
 
 ```bash
+[ -f .env ] && set -a && . ./.env && set +a
 STORAGE="${OPEN_COACH_STORAGE:-$HOME/.open-coach}"
 LANG="${OPEN_COACH_LANGUAGE:-en}"
 USER_NAME="${OPEN_COACH_USER_NAME:-}"

@@ -8,6 +8,7 @@ must be in the user's configured language (`$LANG` below).
 ## Config
 
 ```bash
+[ -f .env ] && set -a && . ./.env && set +a
 STORAGE="${OPEN_COACH_STORAGE:-$HOME/.open-coach}"
 LANG="${OPEN_COACH_LANGUAGE:-en}"
 SESSIONS="$STORAGE/sessions"
